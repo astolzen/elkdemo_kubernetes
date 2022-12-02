@@ -1,0 +1,119 @@
+- name: Logstash Config Map
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: log2-config
+        namespace: "{{ elk_ns }}"
+      data:
+        logstash.yml: |
+          http.host: "0.0.0.0"
+          path.config: /usr/share/logstash/pipeline
+        pipeline.conf:  |
+          input {  
+              twitter {
+                  consumer_key => "{{ app_key }}"
+                  consumer_secret => "{{ app_secret }}"
+                  oauth_token => "{{ token_key }}"
+                  oauth_token_secret => "{{ token_secret }}"
+                  keywords => ["{{ tw_keyword }}"]
+                  full_tweet => true
+              }
+          }
+          
+          filter { }
+          
+          output {
+              elasticsearch {
+                hosts => "https://ela2-es-http.elk.svc.cluster.local:9200"
+                index         => "twitter_elastic_example"
+                document_type => "tweets"
+                cacert => '/etc/logstash/config/certs/ca.crt'
+                ssl_certificate_verification => false
+                user => 'elastic'
+                password => '{{ secret.resources[0].data.elastic | b64decode }}'
+                template      => "/etc/logstash/twitter_template.json"
+                template_name => "twitter_elastic_example"
+                template_overwrite => true
+            }
+          } 
+
+        twitter_template.json: |
+          {
+              "index_patterns": "twitter_elastic_example",
+              "settings": {
+                "number_of_shards": 1,
+                "number_of_replicas": 0,
+                "mapping": {
+                  "total_fields": {
+                    "limit": "10000"
+                  }
+                }
+              },
+              "mappings": {
+                "tweets": {
+                  "properties": {
+                    "@timestamp": {
+                      "type": "date",
+                      "format": "dateOptionalTime"
+                    },
+                    "text": {
+                      "type": "text"
+                    },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "description": {
+                          "type": "text"
+                        }
+                      }
+                    },
+                    "coordinates": {
+                      "type": "object",
+                      "properties": {
+                        "coordinates": {
+                          "type": "geo_point"
+                        }
+                      }
+                    },
+                    "entities": {
+                      "type": "object",
+                      "properties": {
+                        "hashtags": {
+                          "type": "object",
+                          "properties": {
+                            "text": {
+                              "type": "text",
+                              "fielddata": true
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "retweeted_status": {
+                      "type": "object",
+                      "properties": {
+                        "text": {
+                          "type": "text"
+                        }
+                      }
+                    }
+                  },
+                  "dynamic_templates": [
+                    {
+                      "string_template": {
+                        "match": "*",
+                        "match_mapping_type": "string",
+                        "mapping": {
+                          "type": "keyword"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+                   
+          

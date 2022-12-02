@@ -1,0 +1,58 @@
+- name: Deploy Logstash
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: log2-deployment
+        namespace: "{{ elk_ns }}"
+      spec:
+        replicas: 1
+        selector:
+          matchLabels:
+            app: log2
+        template:
+          metadata:
+            labels:
+              app: log2
+          spec:
+            containers:
+            - name: log2
+              image: docker.elastic.co/logstash/logstash-oss:8.4.3
+              ports:
+              - containerPort: 5044
+              volumeMounts:
+                - name: config-ca
+                  mountPath: /etc/logstash/config/certs
+                - name: config-volume
+                  mountPath: /usr/share/logstash/config
+                - name: config-pipeline
+                  mountPath: /usr/share/logstash/pipeline
+                - name: config-etc
+                  mountPath: /etc/logstash/
+            volumes:
+            - name: config-ca
+              secret:
+                secretName: ela2-es-http-certs-public
+                items:
+                  - key: ca.crt
+                    path: ca.crt
+            - name: config-volume
+              configMap:
+                name: log2-config
+                items:
+                  - key: logstash.yml
+                    path: logstash.yml
+            - name: config-pipeline
+              configMap:
+                name: log2-config
+                items:
+                  - key: pipeline.conf
+                    path: pipeline.conf
+            - name: config-etc
+              configMap:
+                name: log2-config
+                items:
+                  - key: twitter_template.json
+                    path: twitter_template.json

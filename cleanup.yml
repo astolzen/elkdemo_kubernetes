@@ -1,0 +1,58 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: False
+
+  vars_files:
+    - vars.yml
+    
+  tasks:
+  - name: Cleanup Logstash Deployment
+    kubernetes.core.k8s:
+      state: absent
+      definition:
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: log2-deployment
+          namespace: "{{ elk_ns }}"        
+
+  - name: Cleanup Logstash Config Map
+    kubernetes.core.k8s:
+      state: absent
+      definition:
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: log2-config
+          namespace: "{{ elk_ns }}"
+
+  - name: Clean kiba2-route
+    kubernetes.core.k8s:
+      state: absent
+      definition: 
+        apiVersion: route.openshift.io/v1
+        kind: Route
+        metadata:
+          name: kiba2
+          namespace: "{{ elk_ns }}"  
+
+  - name: Cleanup Kib2
+    kubernetes.core.k8s:
+      state: absent
+      definition:          
+        apiVersion: kibana.k8s.elastic.co/v1
+        kind: Kibana
+        metadata:
+          name: kiba2
+          namespace: "{{ elk_ns }}"
+  
+  - name: Cleanup ela2
+    kubernetes.core.k8s:
+      state: absent
+      definition:
+        apiVersion: elasticsearch.k8s.elastic.co/v1
+        kind: Elasticsearch
+        metadata:
+          name: ela2
+          namespace: "{{ elk_ns }}"      

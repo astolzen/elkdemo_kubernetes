@@ -1,0 +1,7 @@
+elk_ns:       << Kubernetes Namespace Name here >>
+fqdn:         << Domain Name for Kibana https://kiba2.((fqdn)) >>
+tw_keyword:   << Keyword to be indexed >>
+app_key:      << Your Twitter API Credentials here >>
+app_secret:   << Your Twitter API Credentials here >>
+token_key:    << Your Twitter API Credentials here >>
+token_secret: << Your Twitter API Credentials here >>

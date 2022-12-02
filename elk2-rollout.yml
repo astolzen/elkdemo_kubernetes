@@ -1,0 +1,77 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: False
+
+  vars_files:
+    - vars.yml
+
+  tasks:
+  - name: Create ela2
+    kubernetes.core.k8s:
+      state: present
+      definition:
+        apiVersion: elasticsearch.k8s.elastic.co/v1
+        kind: Elasticsearch
+        metadata:
+          name: ela2
+          namespace: "{{ elk_ns }}"
+        spec:
+          version: 8.4.3
+          nodeSets:
+          - name: default
+            count: 1
+            config:
+              node.store.allow_mmap: false
+
+  - name: Create kiba2
+    kubernetes.core.k8s:
+      state: present
+      definition:
+        apiVersion: kibana.k8s.elastic.co/v1
+        kind: Kibana
+        metadata:
+          name: kiba2
+          namespace: "{{ elk_ns }}"
+        spec:
+          version: 8.4.3
+          count: 1
+          elasticsearchRef:
+            name: ela2
+
+  - name: Create kiba2-route
+    kubernetes.core.k8s:
+      state: present
+      definition: 
+        apiVersion: route.openshift.io/v1
+        kind: Route
+        metadata:
+          name: kiba2
+          namespace: "{{ elk_ns }}"
+        spec:
+          host: kiba2.{{ fqdn }}
+          tls:
+            termination: passthrough # Kibana is the TLS endpoint
+            insecureEdgeTerminationPolicy: Redirect
+          to:
+            kind: Service
+            name: kiba2-kb-http
+
+  - name: Get Secret
+    kubernetes.core.k8s_info:
+      api_version: v1
+      kind: Secret
+      name: ela2-es-elastic-user
+      namespace: "{{ elk_ns }}"
+    register: secret
+    # Password will be in: {{ secret.resources[0].data.elastic | b64decode }}
+  
+  - name: Create logstash configmap
+    include_tasks: logstash_config.yml
+
+  - name: Roll out Logstash
+    include_tasks: logstash_deploy.yml
+
+  - name: Elastic Password
+    debug: 
+      msg: "Password: {{ secret.resources[0].data.elastic | b64decode }}"
