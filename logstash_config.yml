@@ -27,7 +27,7 @@
           
           output {
               elasticsearch {
-                hosts => "https://ela2-es-http.elk.svc.cluster.local:9200"
+                hosts => "https://ela2-es-http:9200"
                 index         => "twitter_elastic_example"
                 document_type => "tweets"
                 cacert => '/etc/logstash/config/certs/ca.crt'
